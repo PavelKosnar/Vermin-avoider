@@ -30,9 +30,8 @@ class Player(pygame.sprite.Sprite):
         if self.rect.right > 800:
             self.rect.right = 800
 
-    def animation(self):
-        # GROUND ANIMATION
-        move_right = False
+    def movement(self):
+        # GROUND MOVEMENT
         if pygame.key.get_pressed()[pygame.K_d] and not pygame.key.get_pressed()[pygame.K_a]:
             self.face_right = True
             self.rect.left += 5
@@ -56,7 +55,7 @@ class Player(pygame.sprite.Sprite):
             else:
                 self.image = pygame.transform.flip(self.player_walk[0], True, False)
 
-        # AIR ANIMATION
+        # AIR MOVEMENT
         if self.rect.bottom < 300:
             if self.face_right:
                 self.image = self.player_jump
@@ -73,7 +72,7 @@ class Player(pygame.sprite.Sprite):
             self.rect = self.image.get_rect(midbottom=(80, 300))
 
     def update(self):
-        self.animation()
+        self.movement()
         self.apply_physics()
         self.reset_position()
 
@@ -98,20 +97,29 @@ class Obstacle(pygame.sprite.Sprite):
         self.image = self.frames[self.animation_index]
         self.rect = self.image.get_rect(bottomleft=(randint(800, 1000), y_pos))
 
-    def animation(self):
+    def movement(self):
         self.animation_index += 0.1
         if self.animation_index >= len(self.frames):
             self.animation_index = 0
         self.image = self.frames[int(self.animation_index)]
 
     def update(self):
-        self.animation()
+        self.movement()
         self.rect.x -= 4
         self.destroy()
 
     def destroy(self):
         if self.rect.right <= 0:
             self.kill()
+
+
+class Menu(pygame.sprite.Sprite):
+    def __init__(self, y_pos):
+        super().__init__()
+
+        self.image = pygame.image.load('menu/menu_text_bg.png').convert_alpha()
+        self.image = pygame.transform.rotozoom(self.image, 0, 1.1)
+        self.rect = self.image.get_rect(center=(400, y_pos))
 
 
 class Shield(pygame.sprite.Sprite):
@@ -149,7 +157,9 @@ class Shield(pygame.sprite.Sprite):
 
 
 def display_score():
-    current_time = pygame.time.get_ticks() - start_time
+    global pause_duration
+    pause_duration = unpause_time - pause_time
+    current_time = pygame.time.get_ticks() - start_time - pause_duration
     score_surf = font.render('Score: ' + str(int(current_time / 100)), False, (32, 32, 32))
     score_rect = score_surf.get_rect(midleft=(330, game_name_rect.bottom + 20))
     screen.blit(score_surf, score_rect)
@@ -181,6 +191,17 @@ def shield_pickup():
             return False
     except AttributeError:
         return False
+    
+
+def handle_menu_text():
+    menu_text = ['PLAY', 'CONTROLS', 'EXIT THE GAME']
+    menu_y_pos = 150
+    for i in menu_text:
+        menu_surface = font.render(i, False, 'Black')
+        menu_rect = menu_surface.get_rect(center=(400, menu_y_pos + 4))
+        menu_text_image.update({i: {'surf': menu_surface, 'rect': menu_rect}})
+        menu_group.add(Menu(menu_y_pos))
+        menu_y_pos += 70
 
 
 # START AND SCREEN
@@ -189,12 +210,23 @@ screen = pygame.display.set_mode((800, 400))
 pygame.display.set_caption('Avoid the vermin!')
 fps = pygame.time.Clock()
 game_active = False
+menu = True
 start_time = 0
+pause_time = 0
+unpause_time = 0
+pause_duration = 0
 score = 0
 
 shield_active = False
 start_shield_spawn_timer = 0
 random_shield_spawn = randint(30, 60)
+
+# BACKGROUND MODELS
+sky = pygame.image.load('graphics/sky.png').convert()
+ground = pygame.image.load('graphics/ground.png').convert()
+font = pygame.font.Font('font/pixeltype.ttf', 50)
+game_name = font.render('AVOID THE VERMIN!', False, 'Black')
+game_name_rect = game_name.get_rect(center=(400, 60))
 
 # MUSIC
 background_music = pygame.mixer.Sound('audio/music.wav')
@@ -207,21 +239,11 @@ player.add(Player())
 
 obstacle_group = pygame.sprite.Group()
 
+menu_group = pygame.sprite.Group()
+menu_text_image = {}
+handle_menu_text()
+
 shield = pygame.sprite.GroupSingle()
-
-# HIGHEST SCORE
-f = open('highest_score.txt', 'r')
-highest_score = f.readline()
-score_index = highest_score.index(': ')
-highest_score = int(highest_score[score_index + 2:])
-f.close()
-
-# BACKGROUND MODELS
-sky = pygame.image.load('graphics/sky.png').convert()
-ground = pygame.image.load('graphics/ground.png').convert()
-font = pygame.font.Font('font/pixeltype.ttf', 50)
-game_name = font.render('AVOID THE VERMIN!', False, 'Black')
-game_name_rect = game_name.get_rect(center=(400, 60))
 
 # MENU
 player_stand = pygame.image.load('graphics/Player/player_stand.png').convert_alpha()
@@ -230,6 +252,16 @@ player_stand_rect = player_stand.get_rect(center=(400, 200))
 
 start_the_game = font.render('Press ENTER to start the game', False, 'Black')
 start_the_game_rect = start_the_game.get_rect(center=(400, player_stand_rect.bottom + 50))
+
+# HIGHEST SCORE
+f = open('highest_score.txt', 'r')
+highest_score = f.readline()
+score_index = highest_score.index(': ')
+highest_score = int(highest_score[score_index + 2:])
+f.close()
+highest_score_surf = font.render('Highest score: ' + str(highest_score), False, '#FF33AA')
+highest_score_surf = pygame.transform.rotozoom(highest_score_surf, 0, 0.7)
+highest_score_rect = highest_score_surf.get_rect(topleft=(10, 10))
 
 # TIMER
 obstacle_timer = pygame.USEREVENT + 1
@@ -241,7 +273,31 @@ while True:
         if event.type == pygame.QUIT:
             pygame.quit()
             exit()
-        if game_active:
+
+        # MENU
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            if menu:
+                menu = False
+                unpause_time = pygame.time.get_ticks()
+            else:
+                menu = True
+                pause_time = pygame.time.get_ticks()
+        if menu:
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                for menu_button_text in menu_text_image:
+                    menu_button = menu_text_image[menu_button_text]
+                    rect = menu_button['rect']
+                    if rect.collidepoint(event.pos):
+                        if menu_button_text == 'PLAY':
+                            menu = False
+                            unpause_time = pygame.time.get_ticks()
+                            if not game_active:
+                                start_time = pygame.time.get_ticks()
+                                game_active = True
+                        elif menu_button_text == 'EXIT THE GAME':
+                            pygame.quit()
+                            exit()
+        if game_active and not menu:
             # OBSTACLE SPAWN
             if event.type == obstacle_timer:
                 obstacle_group.add(Obstacle(choice(['fly', 'snail', 'snail'])))
@@ -250,7 +306,18 @@ while True:
                 game_active = True
                 start_time = pygame.time.get_ticks()
 
-    if game_active:
+    if menu:
+        screen.fill((94, 129, 162))
+        screen.blit(game_name, game_name_rect)
+
+        # DRAW MENU TEXTS
+        menu_group.draw(screen)
+        menu_group.update()
+        for x in menu_text_image:
+            current_menu_text = menu_text_image[x]
+            screen.blit(current_menu_text['surf'], current_menu_text['rect'])
+
+    elif game_active:
         # BACKGROUND
         screen.blit(sky, (0, 0))
         screen.blit(ground, (0, 300))
@@ -317,10 +384,10 @@ while True:
             f = open('highest_score.txt', 'w')
             f.write('Highest score: ' + str(highest_score))
             f.close()
+            highest_score_surf = font.render('Highest score: ' + str(highest_score), False, '#FF33AA')
+            highest_score_surf = pygame.transform.rotozoom(highest_score_surf, 0, 0.7)
+            highest_score_rect = highest_score_surf.get_rect(topleft=(10, 10))
 
-        highest_score_surf = font.render('Highest score: ' + str(highest_score), False, '#FF33AA')
-        highest_score_surf = pygame.transform.rotozoom(highest_score_surf, 0, 0.7)
-        highest_score_rect = highest_score_surf.get_rect(topleft=(10, 10))
         screen.blit(highest_score_surf, highest_score_rect)
 
     pygame.display.update()
