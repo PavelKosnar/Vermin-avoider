@@ -156,16 +156,6 @@ class Shield(pygame.sprite.Sprite):
             random_shield_spawn = randint(30, 60)
 
 
-def display_score():
-    global pause_duration
-    pause_duration = unpause_time - pause_time
-    current_time = pygame.time.get_ticks() - start_time - pause_duration
-    score_surf = font.render('Score: ' + str(int(current_time / 100)), False, (32, 32, 32))
-    score_rect = score_surf.get_rect(midleft=(330, game_name_rect.bottom + 20))
-    screen.blit(score_surf, score_rect)
-    return current_time
-
-
 def collision():
     global shield_active, random_shield_spawn, start_shield_spawn_timer
     if shield_active and pygame.sprite.spritecollide(player.sprite, obstacle_group, True):
@@ -211,11 +201,8 @@ pygame.display.set_caption('Avoid the vermin!')
 fps = pygame.time.Clock()
 game_active = False
 menu = True
-start_time = 0
-pause_time = 0
-unpause_time = 0
-pause_duration = 0
 score = 0
+end_score = 0
 
 shield_active = False
 start_shield_spawn_timer = 0
@@ -266,6 +253,8 @@ highest_score_rect = highest_score_surf.get_rect(topleft=(10, 10))
 # TIMER
 obstacle_timer = pygame.USEREVENT + 1
 pygame.time.set_timer(obstacle_timer, 1500)
+score_timer = pygame.USEREVENT + 2
+pygame.time.set_timer(score_timer, 100)
 
 while True:
     for event in pygame.event.get():
@@ -278,10 +267,8 @@ while True:
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             if menu:
                 menu = False
-                unpause_time = pygame.time.get_ticks()
             else:
                 menu = True
-                pause_time = pygame.time.get_ticks()
         if menu:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 for menu_button_text in menu_text_image:
@@ -290,21 +277,22 @@ while True:
                     if rect.collidepoint(event.pos):
                         if menu_button_text == 'PLAY':
                             menu = False
-                            unpause_time = pygame.time.get_ticks()
                             if not game_active:
-                                start_time = pygame.time.get_ticks()
                                 game_active = True
                         elif menu_button_text == 'EXIT THE GAME':
                             pygame.quit()
                             exit()
-        if game_active and not menu:
+        elif game_active:
             # OBSTACLE SPAWN
             if event.type == obstacle_timer:
                 obstacle_group.add(Obstacle(choice(['fly', 'snail', 'snail'])))
+            if event.type == score_timer:
+                score += 1
+            end_score = score
         else:
+            score = 0
             if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                 game_active = True
-                start_time = pygame.time.get_ticks()
 
     if menu:
         screen.fill((94, 129, 162))
@@ -330,8 +318,10 @@ while True:
         screen.blit(game_name, game_name_rect)
 
         # SCORE
-        score = display_score()
-        score = int(score / 100)
+        score_surf = font.render('Score: ' + str(score), False, (32, 32, 32))
+        score_rect = score_surf.get_rect(midleft=(330, game_name_rect.bottom + 20))
+        screen.blit(score_surf, score_rect)
+
         highest_score_surf = font.render('Highest score: ' + str(highest_score), False, '#FF33AA')
         highest_score_surf = pygame.transform.rotozoom(highest_score_surf, 0, 0.7)
         highest_score_rect = highest_score_surf.get_rect(topleft=(10, 10))
@@ -374,13 +364,13 @@ while True:
         start_shield_spawn_timer = int(pygame.time.get_ticks() / 1000)
 
         # SCORE
-        score_message = font.render('Score: ' + str(score), False, 'Black')
+        score_message = font.render('Score: ' + str(end_score), False, 'Black')
         score_message_rect = score_message.get_rect(midleft=(330, game_name_rect.bottom + 20))
 
-        if score != 0:
+        if end_score != 0:
             screen.blit(score_message, score_message_rect)
-        if score > highest_score:
-            highest_score = score
+        if end_score > highest_score:
+            highest_score = end_score
             f = open('highest_score.txt', 'w')
             f.write('Highest score: ' + str(highest_score))
             f.close()
