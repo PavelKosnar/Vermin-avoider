@@ -66,6 +66,8 @@ class Player(pygame.sprite.Sprite):
             self.jump_sound.play()
         if pygame.key.get_pressed()[pygame.K_s] and self.gravity > -10:
             self.gravity += 2
+        elif pygame.key.get_pressed()[pygame.K_w] and self.gravity > -5:
+            self.gravity -= 0.6
 
     def reset_position(self):
         if not game_active:
@@ -181,9 +183,9 @@ def shield_pickup():
             return False
     except AttributeError:
         return False
-    
 
-def handle_menu_text():
+
+def handle_menu():
     menu_text = ['PLAY', 'CONTROLS', 'EXIT THE GAME']
     menu_y_pos = 150
     for i in menu_text:
@@ -194,6 +196,19 @@ def handle_menu_text():
         menu_y_pos += 70
 
 
+def handle_controls(text):
+    controls_y_pos = 120
+    for i in text:
+        current_controls_text = text[i]
+        controls_button_surface = font.render(i, False, 'Black')
+        controls_button_rect = controls_button_surface.get_rect(topright=(250, controls_y_pos))
+        controls_button_text.update({i: {'surf': controls_button_surface, 'rect': controls_button_rect}})
+        controls_text_surface = font.render(current_controls_text, False, 'Black')
+        controls_text_rect = controls_text_surface.get_rect(topleft=(300, controls_y_pos))
+        controls_text.update({i: {'surf': controls_text_surface, 'rect': controls_text_rect}})
+        controls_y_pos += 40
+
+
 # START AND SCREEN
 pygame.init()
 screen = pygame.display.set_mode((800, 400))
@@ -201,6 +216,7 @@ pygame.display.set_caption('Avoid the vermin!')
 fps = pygame.time.Clock()
 game_active = False
 menu = True
+controls = False
 score = 0
 end_score = 0
 
@@ -228,7 +244,16 @@ obstacle_group = pygame.sprite.Group()
 
 menu_group = pygame.sprite.Group()
 menu_text_image = {}
-handle_menu_text()
+handle_menu()
+
+controls_text_and_buttons = {'SPACE:': 'Jump',
+                             'A / D:': 'Move left / right',
+                             'W:': 'Float',
+                             'S:': 'Downfall',
+                             'ESC:': 'Open menu'}
+controls_text = {}
+controls_button_text = {}
+handle_controls(controls_text_and_buttons)
 
 shield = pygame.sprite.GroupSingle()
 
@@ -265,7 +290,9 @@ while True:
 
         # MENU
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            if menu:
+            if controls:
+                controls = False
+            elif menu:
                 menu = False
             else:
                 menu = True
@@ -279,6 +306,8 @@ while True:
                             menu = False
                             if not game_active:
                                 game_active = True
+                        elif menu_button_text == 'CONTROLS':
+                            controls = True
                         elif menu_button_text == 'EXIT THE GAME':
                             pygame.quit()
                             exit()
@@ -297,13 +326,20 @@ while True:
     if menu:
         screen.fill((94, 129, 162))
         screen.blit(game_name, game_name_rect)
-
-        # DRAW MENU TEXTS
-        menu_group.draw(screen)
-        menu_group.update()
-        for x in menu_text_image:
-            current_menu_text = menu_text_image[x]
-            screen.blit(current_menu_text['surf'], current_menu_text['rect'])
+        if controls:
+            for x in controls_button_text:
+                current_button_text = controls_button_text[x]
+                screen.blit(current_button_text['surf'], current_button_text['rect'])
+            for y in controls_text:
+                current_text = controls_text[y]
+                screen.blit(current_text['surf'], current_text['rect'])
+        else:
+            # DRAW MENU TEXTS
+            menu_group.draw(screen)
+            menu_group.update()
+            for x in menu_text_image:
+                current_menu_text = menu_text_image[x]
+                screen.blit(current_menu_text['surf'], current_menu_text['rect'])
 
     elif game_active:
         # BACKGROUND
@@ -353,7 +389,7 @@ while True:
         # COLLISION
         game_active = collision()
 
-    else:   # MENU
+    else:  # MENU
         player.update()
         shield.update()
         screen.fill((94, 129, 162))
