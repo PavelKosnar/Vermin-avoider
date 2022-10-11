@@ -17,7 +17,7 @@ class Player(pygame.sprite.Sprite):
         self.gravity = 0
         self.face_right = True
 
-        self.jump_sound = pygame.mixer.Sound('audio/jump.mp3')
+        self.jump_sound = pygame.mixer.Sound('audio/jump.wav')
         self.jump_sound.set_volume(0.01)
 
     def apply_physics(self):
@@ -63,7 +63,8 @@ class Player(pygame.sprite.Sprite):
                 self.image = pygame.transform.flip(self.player_jump, True, False)
         if pygame.key.get_pressed()[pygame.K_SPACE] and self.rect.bottom == 300:
             self.gravity = -20
-            self.jump_sound.play()
+            if game_active:
+                self.jump_sound.play()
         if pygame.key.get_pressed()[pygame.K_s] and self.gravity > -10:
             self.gravity += 2
         elif pygame.key.get_pressed()[pygame.K_w] and self.gravity > -5:
@@ -297,6 +298,7 @@ while True:
             else:
                 menu = True
         if menu:
+            # MENU OPTIONS
             if event.type == pygame.MOUSEBUTTONDOWN:
                 for menu_button_text in menu_text_image:
                     menu_button = menu_text_image[menu_button_text]
@@ -327,6 +329,7 @@ while True:
         screen.fill((94, 129, 162))
         screen.blit(game_name, game_name_rect)
         if controls:
+            # DISPLAY CONTROLS
             for x in controls_button_text:
                 current_button_text = controls_button_text[x]
                 screen.blit(current_button_text['surf'], current_button_text['rect'])
