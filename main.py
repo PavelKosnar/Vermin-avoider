@@ -17,9 +17,6 @@ class Player(pygame.sprite.Sprite):
         self.gravity = 0
         self.face_right = True
 
-        self.jump_sound = pygame.mixer.Sound('audio/jump.wav')
-        self.jump_sound.set_volume(0.01)
-
     def apply_physics(self):
         self.gravity += 1
         self.rect.y += self.gravity
@@ -64,7 +61,7 @@ class Player(pygame.sprite.Sprite):
         if pygame.key.get_pressed()[pygame.K_SPACE] and self.rect.bottom == 300:
             self.gravity = -20
             if game_active:
-                self.jump_sound.play()
+                jump_sound.play()
         if pygame.key.get_pressed()[pygame.K_s] and self.gravity > -10:
             self.gravity += 2
         elif pygame.key.get_pressed()[pygame.K_w] and self.gravity > -5:
@@ -114,15 +111,6 @@ class Obstacle(pygame.sprite.Sprite):
     def destroy(self):
         if self.rect.right <= 0:
             self.kill()
-
-
-class Menu(pygame.sprite.Sprite):
-    def __init__(self, y_pos):
-        super().__init__()
-
-        self.image = pygame.image.load('menu/menu_text_bg.png').convert_alpha()
-        self.image = pygame.transform.rotozoom(self.image, 0, 1.1)
-        self.rect = self.image.get_rect(center=(400, y_pos))
 
 
 class Shield(pygame.sprite.Sprite):
@@ -187,27 +175,126 @@ def shield_pickup():
 
 
 def handle_menu():
-    menu_text = ['PLAY', 'CONTROLS', 'EXIT THE GAME']
+    menu_text = ['PLAY', 'CONTROLS', 'OPTIONS', 'EXIT THE GAME']
     menu_y_pos = 150
     for i in menu_text:
+        menu_image = pygame.image.load('menu/menu_text_bg.png').convert_alpha()
+        menu_image = pygame.transform.rotozoom(menu_image, 0, 1.1)
+        menu_image_rect = menu_image.get_rect(center=(400, menu_y_pos))
+
         menu_surface = font.render(i, False, 'Black')
-        menu_rect = menu_surface.get_rect(center=(400, menu_y_pos + 4))
-        menu_text_image.update({i: {'surf': menu_surface, 'rect': menu_rect}})
-        menu_group.add(Menu(menu_y_pos))
+        menu_text_rect = menu_surface.get_rect(center=(menu_image.get_width() / 2, menu_image.get_height() / 2 + 4))
+
+        menu_images.update({i: {'surf': menu_image, 'rect': menu_image_rect}})
+        menu_text_image.update({i: {'surf': menu_surface, 'rect': menu_text_rect}})
         menu_y_pos += 70
 
 
-def handle_controls(text):
+def handle_controls():
+    controls_text_and_buttons = {'SPACE:': 'Jump',
+                                 'A / D:': 'Move left / right',
+                                 'W:': 'Float',
+                                 'S:': 'Downfall',
+                                 'ESC:': 'Open menu'}
     controls_y_pos = 120
-    for i in text:
-        current_controls_text = text[i]
+    for i in controls_text_and_buttons:
+        current_controls_text = controls_text_and_buttons[i]
         controls_button_surface = font.render(i, False, 'Black')
         controls_button_rect = controls_button_surface.get_rect(topright=(250, controls_y_pos))
         controls_button_text.update({i: {'surf': controls_button_surface, 'rect': controls_button_rect}})
+
         controls_text_surface = font.render(current_controls_text, False, 'Black')
         controls_text_rect = controls_text_surface.get_rect(topleft=(300, controls_y_pos))
         controls_text.update({i: {'surf': controls_text_surface, 'rect': controls_text_rect}})
         controls_y_pos += 40
+
+
+def handle_options():
+    options_choices = ['Graphics', 'Audio']
+    options_y_pos = 120
+    for i in options_choices:
+        options_text_surface = font.render(i, False, 'Black')
+        options_text_rect = options_text_surface.get_rect(topleft=(120, options_y_pos))
+        options_text.update({i: {'surf': options_text_surface, 'rect': options_text_rect}})
+        options_y_pos += 40
+
+
+def audio_options():
+    progress_bar_outer = pygame.image.load('menu/progress_bar_outer.png').convert_alpha()
+    progress_bar_outer = pygame.transform.rotozoom(progress_bar_outer, 0, 0.5)
+    progress_bar_outer_rect = progress_bar_outer.get_rect(center=(553, 151))
+    audio_items.update({'outer': {'surf': progress_bar_outer, 'rect': progress_bar_outer_rect}})
+
+    progress_bar_outer_in = pygame.image.load('menu/progress_bar_outer.png').convert_alpha()
+    progress_bar_outer_in = pygame.transform.rotozoom(progress_bar_outer_in, 0, 0.5)
+    progress_bar_outer_rect_in = progress_bar_outer_in.get_rect(topleft=(0, 0))
+    audio_items.update({'outerIn': {'surf': progress_bar_outer_in, 'rect': progress_bar_outer_rect_in}})
+
+    progress_bar_inner = pygame.image.load('menu/progress_bar_inner.png').convert_alpha()
+    progress_bar_inner = pygame.transform.rotozoom(progress_bar_inner, 0, 0.5)
+    progress_bar_inner_rect = progress_bar_inner.get_rect(
+        center=(progress_bar_outer_rect.width / 2 - progress_bar_outer_rect.width / (100 / (100 - volume_percentage)),
+                progress_bar_outer_rect.height / 2))
+    audio_items.update({'inner': {'surf': progress_bar_inner, 'rect': progress_bar_inner_rect}})
+
+    progress_bar_frame = pygame.image.load('menu/progress_bar_frame.png').convert_alpha()
+    progress_bar_frame = pygame.transform.rotozoom(progress_bar_frame, 0, 0.5)
+    progress_bar_frame_rect = progress_bar_frame.get_rect(center=(550, 150))
+    audio_items.update({'frame': {'surf': progress_bar_frame, 'rect': progress_bar_frame_rect}})
+
+    progress_bar_button = pygame.image.load('menu/progress_bar_button.png').convert_alpha()
+    progress_bar_button = pygame.transform.rotozoom(progress_bar_button, 0, 0.5)
+    progress_bar_button_rect = progress_bar_button.get_rect(
+        center=(progress_bar_outer_rect.midright[0] - progress_bar_outer_rect.width / (100 / (100 - volume_percentage)),
+                progress_bar_outer_rect.midright[1]))
+    audio_items.update({'button': {'surf': progress_bar_button, 'rect': progress_bar_button_rect}})
+
+    volume_text = font.render(str(int(volume_percentage)) + ' %', False, 'Black')
+    volume_text_rect = volume_text.get_rect(center=(progress_bar_frame_rect.left + progress_bar_frame_rect.width / 2,
+                                                    progress_bar_frame_rect.bottom + 40))
+    audio_items.update({'volume': {'surf': volume_text, 'rect': volume_text_rect}})
+
+
+def move_audio_bar(mouse_movement):
+    global mouse_button_interaction, volume_percentage
+    mouse_pos = pygame.mouse.get_pos()
+    if mouse_button_interaction:
+        bar_outer = audio_items['outer']['rect']
+        button_rect = audio_items['button']['rect']
+        progress_rect = audio_items['inner']['rect']
+        # MOVE BUTTON
+        button_rect.x += mouse_movement
+        if button_rect.center[0] > bar_outer.right:
+            button_rect.right = bar_outer.right + button_rect.width / 2
+        elif button_rect.center[0] < bar_outer.left - 3:
+            button_rect.left = bar_outer.left - button_rect.width / 2 - 3
+        audio_items['button'].update({'rect': button_rect})
+
+        # MOVE PROGRESS
+        progress_rect.x += mouse_movement
+        if progress_rect.right < progress_inner_center - progress_rect.width / 2:
+            progress_rect.right = progress_inner_center - progress_rect.width / 2
+        elif progress_rect.right > progress_inner_center + progress_rect.width / 2 - 3:
+            progress_rect.right = progress_inner_center + progress_rect.width / 2 - 3
+        audio_items['inner'].update({'rect': progress_rect})
+
+        # VOLUME
+        volume_percentage = ((button_rect.center[0] - bar_outer.left) * 100) / bar_outer.width
+        if volume_percentage < 0:
+            volume_percentage = 0
+        volume_text = font.render(str(int(volume_percentage)) + ' %', False, 'Black')
+        audio_items['volume'].update({'surf': volume_text})
+        if volume_percentage == 0:
+            background_music.set_volume(0)
+            jump_sound.set_volume(0)
+        else:
+            background_music.set_volume(volume_percentage / 1000 + 0.01)
+            jump_sound.set_volume(volume_percentage / 1000 + 0.1)
+
+    if audio_items['button']['rect'].collidepoint(mouse_pos):
+        mouse_button_interaction = True
+    else:
+        mouse_button_interaction = False
 
 
 # START AND SCREEN
@@ -218,8 +305,11 @@ fps = pygame.time.Clock()
 game_active = False
 menu = True
 controls = False
+options = False
 score = 0
 end_score = 0
+mouse_down = False
+volume_percentage = 10
 
 shield_active = False
 start_shield_spawn_timer = 0
@@ -234,28 +324,44 @@ game_name_rect = game_name.get_rect(center=(400, 60))
 
 # MUSIC
 background_music = pygame.mixer.Sound('audio/music.wav')
-background_music.set_volume(0.03)
+jump_sound = pygame.mixer.Sound('audio/jump.wav')
+if volume_percentage == 0:
+    background_music.set_volume(0)
+    jump_sound.set_volume(0)
+else:
+    background_music.set_volume(volume_percentage / 1000 + 0.01)
+    jump_sound.set_volume(volume_percentage / 1000 + 0.01)
 background_music.play(loops=-1)
 
-# GROUPS
+# PLAYER
 player = pygame.sprite.GroupSingle()
 player.add(Player())
 
+# OBSTACLE
 obstacle_group = pygame.sprite.Group()
 
-menu_group = pygame.sprite.Group()
+# MENU
 menu_text_image = {}
+menu_images = {}
 handle_menu()
 
-controls_text_and_buttons = {'SPACE:': 'Jump',
-                             'A / D:': 'Move left / right',
-                             'W:': 'Float',
-                             'S:': 'Downfall',
-                             'ESC:': 'Open menu'}
+# CONTROLS
 controls_text = {}
 controls_button_text = {}
-handle_controls(controls_text_and_buttons)
+handle_controls()
 
+# OPTIONS
+options_text = {}
+active_option = {}
+handle_options()
+
+audio_items = {}
+audio_options()
+audio = False
+mouse_button_interaction = False
+progress_inner_center = audio_items['outer']['rect'].width / 2
+
+# SHIELD
 shield = pygame.sprite.GroupSingle()
 
 # MENU
@@ -293,23 +399,45 @@ while True:
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             if controls:
                 controls = False
+            elif options:
+                options = False
             elif menu:
                 menu = False
             else:
                 menu = True
-        if menu:
+
+        if event.type == pygame.MOUSEBUTTONUP:
+            mouse_down = False
+
+        if options:
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                for options_button in options_text:
+                    current_options_button = options_text[options_button]
+                    options_rect = current_options_button['rect']
+                    if options_rect.collidepoint(event.pos):
+                        active_option = options_rect
+                        if options_button == 'Graphics':
+                            audio = False
+                        elif options_button == 'Audio':
+                            audio = True
+                if audio:
+                    mouse_down = True
+
+        elif menu and not controls:
             # MENU OPTIONS
             if event.type == pygame.MOUSEBUTTONDOWN:
-                for menu_button_text in menu_text_image:
-                    menu_button = menu_text_image[menu_button_text]
-                    rect = menu_button['rect']
-                    if rect.collidepoint(event.pos):
+                for menu_button_text in menu_images:
+                    menu_button = menu_images[menu_button_text]
+                    menu_rect = menu_button['rect']
+                    if menu_rect.collidepoint(event.pos):
                         if menu_button_text == 'PLAY':
                             menu = False
                             if not game_active:
                                 game_active = True
                         elif menu_button_text == 'CONTROLS':
                             controls = True
+                        elif menu_button_text == 'OPTIONS':
+                            options = True
                         elif menu_button_text == 'EXIT THE GAME':
                             pygame.quit()
                             exit()
@@ -325,6 +453,7 @@ while True:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                 game_active = True
 
+    # GAME
     if menu:
         screen.fill((94, 129, 162))
         screen.blit(game_name, game_name_rect)
@@ -336,13 +465,42 @@ while True:
             for y in controls_text:
                 current_text = controls_text[y]
                 screen.blit(current_text['surf'], current_text['rect'])
+        elif options:
+            # DISPLAY OPTIONS
+            pygame.draw.rect(screen, (150, 150, 150), (100, 100, 600, 250))
+            pygame.draw.rect(screen, (32, 32, 32), (100, 100, 600, 250), 2)
+            pygame.draw.line(screen, (32, 32, 32), (screen.get_width() / 2, 100), (screen.get_width() / 2, 349), 3)
+            try:
+                pygame.draw.rect(screen, (200, 200, 200), active_option)
+            except TypeError:
+                pass
+            for x in options_text:
+                current_options_text = options_text[x]
+                screen.blit(current_options_text['surf'], current_options_text['rect'])
+            if audio:
+                mouse_move_x = pygame.mouse.get_rel()[0]
+                if mouse_down:
+                    move_audio_bar(mouse_move_x)
+                else:
+                    mouse_button_interaction = False
+                for x in audio_items:
+                    current_progress_bar = audio_items[x]
+                    if x == 'outerIn':
+                        pass
+                    elif x == 'inner':
+                        audio_items['outer']['surf'].blit(audio_items['outerIn']['surf'],
+                                                          audio_items['outerIn']['rect'])
+                        audio_items['outer']['surf'].blit(current_progress_bar['surf'], current_progress_bar['rect'])
+                    else:
+                        screen.blit(current_progress_bar['surf'], current_progress_bar['rect'])
+                        # audio_items['outer']['surf'].blit(audio_items['outer']['surf'], (0, 0))
         else:
-            # DRAW MENU TEXTS
-            menu_group.draw(screen)
-            menu_group.update()
-            for x in menu_text_image:
+            # DISPLAY MENU TEXTS
+            for x in menu_images:
+                current_menu_image = menu_images[x]
                 current_menu_text = menu_text_image[x]
-                screen.blit(current_menu_text['surf'], current_menu_text['rect'])
+                screen.blit(current_menu_image['surf'], current_menu_image['rect'])
+                current_menu_image['surf'].blit(current_menu_text['surf'], current_menu_text['rect'])
 
     elif game_active:
         # BACKGROUND
@@ -392,7 +550,7 @@ while True:
         # COLLISION
         game_active = collision()
 
-    else:  # MENU
+    else:  # DEATH SCREEN
         player.update()
         shield.update()
         screen.fill((94, 129, 162))
