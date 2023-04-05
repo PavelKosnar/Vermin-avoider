@@ -1,101 +1,118 @@
-import pygame
-from sys import exit
 from random import randint, choice
+from sys import exit
+import pygame
 
 
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        player_walk_1 = pygame.image.load('graphics/player/player_walk_1.png').convert_alpha()
-        player_walk_2 = pygame.image.load('graphics/player/player_walk_2.png').convert_alpha()
-        self.player_walk = [player_walk_1, player_walk_2]
+        self.player_walk_1 = pygame.image.load('graphics/player/player_walk_1.png').convert_alpha()
+        self.player_walk_2 = pygame.image.load('graphics/player/player_walk_2.png').convert_alpha()
+        self.player_walk = [pygame.transform.rotozoom(self.player_walk_1, 0, screen_height / 400),
+                            pygame.transform.rotozoom(self.player_walk_2, 0, screen_height / 400)]
         self.player_index = 0
-        self.player_jump = pygame.image.load('graphics/Player/jump.png').convert_alpha()
+        self.jump_image = pygame.image.load('graphics/Player/jump.png').convert_alpha()
+        self.player_jump = pygame.transform.rotozoom(self.jump_image, 0, screen_height / 400)
 
         self.image = self.player_walk[self.player_index]
-        self.rect = self.image.get_rect(midbottom=(80, 300))
+        self.rect = self.image.get_rect(midbottom=(screen_width / 10, ground_position))
         self.gravity = 0
         self.face_right = True
 
     def apply_physics(self):
-        self.gravity += 1
+        self.gravity += shc
         self.rect.y += self.gravity
-        if self.rect.bottom > 300:
-            self.rect.bottom = 300
+        if self.rect.bottom > ground_position:
+            self.rect.bottom = ground_position
         if self.rect.left < 0:
             self.rect.left = 0
-        if self.rect.right > 800:
-            self.rect.right = 800
+        elif self.rect.right > screen_width:
+            self.rect.right = screen_width
 
     def movement(self):
         # GROUND MOVEMENT
         if pygame.key.get_pressed()[pygame.K_d] and not pygame.key.get_pressed()[pygame.K_a]:
             self.face_right = True
-            self.rect.left += 5
-            if self.rect.bottom == 300:
+            self.rect.left += swc * 5
+            if self.rect.bottom == ground_position:
                 self.player_index += 0.1
                 if self.player_index >= len(self.player_walk):
                     self.player_index = 0
                 self.image = self.player_walk[int(self.player_index)]
         elif pygame.key.get_pressed()[pygame.K_a] and not pygame.key.get_pressed()[pygame.K_d]:
             self.face_right = False
-            self.rect.left -= 5
-            if self.rect.bottom == 300:
+            self.rect.left -= swc * 5
+            if self.rect.bottom == ground_position:
                 self.player_index += 0.1
                 if self.player_index >= len(self.player_walk):
                     self.player_index = 0
                 self.image = self.player_walk[int(self.player_index)]
                 self.image = pygame.transform.flip(self.image, True, False)
-        elif self.rect.bottom == 300:
+        if self.rect.bottom == ground_position:
             if self.face_right:
                 self.image = self.player_walk[0]
             else:
                 self.image = pygame.transform.flip(self.player_walk[0], True, False)
 
         # AIR MOVEMENT
-        if self.rect.bottom < 300:
+        if self.rect.bottom < ground_position:
             if self.face_right:
                 self.image = self.player_jump
             else:
                 self.image = pygame.transform.flip(self.player_jump, True, False)
-        if pygame.key.get_pressed()[pygame.K_SPACE] and self.rect.bottom == 300:
-            self.gravity = -20
+        if pygame.key.get_pressed()[pygame.K_SPACE] and self.rect.bottom == ground_position:
+            self.gravity = -20 * shc
             if game_active:
                 jump_sound.play()
-        if pygame.key.get_pressed()[pygame.K_s] and self.gravity > -10:
-            self.gravity += 2
-        elif pygame.key.get_pressed()[pygame.K_w] and self.gravity > -5:
-            self.gravity -= 0.6
+        if pygame.key.get_pressed()[pygame.K_s] and self.gravity > -10 * shc:
+            self.gravity += 2 * shc
+        elif pygame.key.get_pressed()[pygame.K_w] and self.gravity > -5 * shc:
+            self.gravity -= 0.6 * shc
 
     def reset_position(self):
         if not game_active:
-            self.rect = self.image.get_rect(midbottom=(80, 300))
+            self.rect = self.image.get_rect(midbottom=(80, ground_position))
 
-    def update(self):
-        self.movement()
-        self.apply_physics()
-        self.reset_position()
+    def resolution_change(self, prev_w):
+        self.player_walk = [pygame.transform.rotozoom(self.player_walk_1, 0, screen_height / 400),
+                            pygame.transform.rotozoom(self.player_walk_2, 0, screen_height / 400)]
+        self.player_jump = pygame.transform.rotozoom(self.jump_image, 0, screen_height / 400)
+        self.image = self.player_walk[int(self.player_index)]
+        self.rect = self.image.get_rect(midbottom=(screen_width / (prev_w / self.rect.centerx), ground_position))
+
+    def update(self, change_res=False, previous_width=0):
+        if change_res:
+            self.resolution_change(previous_width)
+        else:
+            global adjust_shield
+            self.movement()
+            self.apply_physics()
+            self.reset_position()
+            adjust_shield = not self.face_right
 
 
 class Obstacle(pygame.sprite.Sprite):
     def __init__(self, obstacle_type):
         super().__init__()
+        self.obstacle_type = obstacle_type
 
         if obstacle_type == 'fly':
-            fly_1 = pygame.image.load('graphics/fly/fly1.png').convert_alpha()
-            fly_2 = pygame.image.load('graphics/fly/fly2.png').convert_alpha()
-            self.frames = [fly_1, fly_2]
-            y_pos = 210
+            self.fly_1 = pygame.image.load('graphics/fly/fly1.png').convert_alpha()
+            self.fly_2 = pygame.image.load('graphics/fly/fly2.png').convert_alpha()
+            self.frames = [pygame.transform.rotozoom(self.fly_1, 0, screen_height / 400),
+                           pygame.transform.rotozoom(self.fly_2, 0, screen_height / 400)]
+            y_pos = ground_position / 1.43
         else:
-            snail_1 = pygame.image.load('graphics/snail/snail1.png').convert_alpha()
-            snail_2 = pygame.image.load('graphics/snail/snail2.png').convert_alpha()
-            self.frames = [snail_1, snail_2]
-            y_pos = 300
+            self.snail_1 = pygame.image.load('graphics/snail/snail1.png').convert_alpha()
+            self.snail_2 = pygame.image.load('graphics/snail/snail2.png').convert_alpha()
+            self.frames = [pygame.transform.rotozoom(self.snail_1, 0, screen_height / 400),
+                           pygame.transform.rotozoom(self.snail_2, 0, screen_height / 400)]
+            y_pos = ground_position
 
         self.animation_index = 0
 
         self.image = self.frames[self.animation_index]
-        self.rect = self.image.get_rect(bottomleft=(randint(800, 1000), y_pos))
+        self.rect = self.image.get_rect(bottomleft=(randint(screen_width, int(screen_width + screen_width / 4)), y_pos))
 
     def movement(self):
         self.animation_index += 0.1
@@ -103,10 +120,25 @@ class Obstacle(pygame.sprite.Sprite):
             self.animation_index = 0
         self.image = self.frames[int(self.animation_index)]
 
-    def update(self):
-        self.movement()
-        self.rect.x -= 4
-        self.destroy()
+    def resolution_change(self, prev_w):
+        if self.obstacle_type == 'fly':
+            self.frames = [pygame.transform.rotozoom(self.fly_1, 0, screen_height / 400),
+                           pygame.transform.rotozoom(self.fly_2, 0, screen_height / 400)]
+            y_pos = ground_position / 1.43
+        else:
+            self.frames = [pygame.transform.rotozoom(self.snail_1, 0, screen_height / 400),
+                           pygame.transform.rotozoom(self.snail_2, 0, screen_height / 400)]
+            y_pos = ground_position
+        self.image = self.frames[int(self.animation_index)]
+        self.rect = self.image.get_rect(bottomleft=(screen_width / (prev_w / self.rect.left), y_pos))
+
+    def update(self, change_res=False, previous_width=0):
+        if change_res:
+            self.resolution_change(previous_width)
+        else:
+            self.movement()
+            self.rect.x -= 4 * swc
+            self.destroy()
 
     def destroy(self):
         if self.rect.right <= 0:
@@ -117,28 +149,45 @@ class Shield(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
 
-        shield_image = pygame.image.load('consumables/shield.png').convert_alpha()
-        self.shield_small = pygame.transform.rotozoom(shield_image, 0, 0.5)
-        y_pos = 110
+        self.shield_image = pygame.image.load('consumables/shield.png').convert_alpha()
+        self.shield_big = pygame.transform.rotozoom(self.shield_image, 0, screen_height / 400)
+        self.shield_small = pygame.transform.rotozoom(self.shield_image, 0, screen_height / 800)
+        y_pos = randint(int(screen_height / 8), int(screen_height / 4))
 
-        self.image = shield_image
-        self.rect = self.image.get_rect(bottomleft=(randint(800, 1000), y_pos))
+        self.image = self.shield_big
+        self.rect = self.image.get_rect(bottomleft=(randint(screen_width, screen_width + 200), y_pos))
 
     def player_shielded(self):
         if shield_active:
-            self.image = self.shield_small
+            if self.image != self.shield_small:
+                self.image = self.shield_small
             self.rect = self.image.get_rect(midbottom=(player.sprite.rect.midtop[0], player.sprite.rect.midtop[1]))
+            if adjust_shield:
+                self.rect.x -= player.sprite.rect.width / 20
         else:
-            self.rect.x -= 4
+            self.rect.x -= 4 * swc
 
     def reset_position(self):
         if not game_active:
             self.kill()
 
-    def update(self):
-        self.player_shielded()
-        self.destroy()
-        self.reset_position()
+    def resolution_change(self, prev_w, prev_h):
+        self.shield_small = pygame.transform.rotozoom(self.shield_image, 0, screen_height / 800)
+        self.shield_big = pygame.transform.rotozoom(self.shield_image, 0, screen_height / 400)
+        if shield_active:
+            self.image = self.shield_small
+        else:
+            self.image = self.shield_big
+            self.rect = self.image.get_rect(bottomleft=(screen_width / (prev_w / self.rect.left),
+                                                        screen_height / (prev_h / self.rect.bottom)))
+
+    def update(self, change_res=False, previous_width=0, previous_height=0):
+        if change_res:
+            self.resolution_change(previous_width, previous_height)
+        else:
+            self.player_shielded()
+            self.destroy()
+            self.reset_position()
 
     def destroy(self):
         global random_shield_spawn
@@ -176,18 +225,18 @@ def shield_pickup():
 
 def handle_menu():
     menu_text = ['PLAY', 'CONTROLS', 'OPTIONS', 'EXIT THE GAME']
-    menu_y_pos = 150
+    menu_y_pos = screen_height / 3
     for i in menu_text:
         menu_image = pygame.image.load('menu/menu_text_bg.png').convert_alpha()
-        menu_image = pygame.transform.rotozoom(menu_image, 0, 1.1)
-        menu_image_rect = menu_image.get_rect(center=(400, menu_y_pos))
+        menu_image = pygame.transform.rotozoom(menu_image, 0, screen_height / 400)
+        menu_image_rect = menu_image.get_rect(center=(screen_width / 2, menu_y_pos))
 
         menu_surface = font.render(i, False, 'Black')
         menu_text_rect = menu_surface.get_rect(center=(menu_image.get_width() / 2, menu_image.get_height() / 2 + 4))
 
         menu_images.update({i: {'surf': menu_image, 'rect': menu_image_rect}})
         menu_text_image.update({i: {'surf': menu_surface, 'rect': menu_text_rect}})
-        menu_y_pos += 70
+        menu_y_pos += screen_height / 8
 
 
 def handle_controls():
@@ -195,55 +244,60 @@ def handle_controls():
                                  'A / D:': 'Move left / right',
                                  'W:': 'Float',
                                  'S:': 'Downfall',
-                                 'ESC:': 'Open menu'}
-    controls_y_pos = 120
+                                 'ESC:': 'Open menu',
+                                 }
+    controls_y_pos = screen_height / 4
     for i in controls_text_and_buttons:
         current_controls_text = controls_text_and_buttons[i]
         controls_button_surface = font.render(i, False, 'Black')
-        controls_button_rect = controls_button_surface.get_rect(topright=(250, controls_y_pos))
+        controls_button_rect = controls_button_surface.get_rect(
+            topright=(screen_width / 2 - screen_width / 40, controls_y_pos))
         controls_button_text.update({i: {'surf': controls_button_surface, 'rect': controls_button_rect}})
 
         controls_text_surface = font.render(current_controls_text, False, 'Black')
-        controls_text_rect = controls_text_surface.get_rect(topleft=(300, controls_y_pos))
+        controls_text_rect = controls_text_surface.get_rect(
+            topleft=(screen_width / 2 + screen_width / 40, controls_y_pos))
         controls_text.update({i: {'surf': controls_text_surface, 'rect': controls_text_rect}})
-        controls_y_pos += 40
+        controls_y_pos += screen_height / 10
 
 
 def handle_options():
     options_choices = ['Graphics', 'Audio']
-    options_y_pos = 120
+    options_y_pos = screen_height * 0.3
     for i in options_choices:
         options_text_surface = font.render(i, False, 'Black')
-        options_text_rect = options_text_surface.get_rect(topleft=(120, options_y_pos))
+        options_text_rect = options_text_surface.get_rect(topleft=(screen_height * 0.3, options_y_pos))
         options_text.update({i: {'surf': options_text_surface, 'rect': options_text_rect}})
-        options_y_pos += 40
+        options_y_pos += screen_height / 10
 
 
 def audio_options():
     progress_bar_outer = pygame.image.load('menu/progress_bar_outer.png').convert_alpha()
-    progress_bar_outer = pygame.transform.rotozoom(progress_bar_outer, 0, 0.5)
-    progress_bar_outer_rect = progress_bar_outer.get_rect(center=(553, 151))
+    progress_bar_outer = pygame.transform.rotozoom(progress_bar_outer, 0, screen_height / 800)
+    progress_bar_outer_rect = progress_bar_outer.get_rect(
+        center=(screen_width / 1.4545 + screen_width / 267, screen_height / 2.666666666666667 + 1))
     audio_items.update({'outer': {'surf': progress_bar_outer, 'rect': progress_bar_outer_rect}})
 
     progress_bar_outer_in = pygame.image.load('menu/progress_bar_outer.png').convert_alpha()
-    progress_bar_outer_in = pygame.transform.rotozoom(progress_bar_outer_in, 0, 0.5)
+    progress_bar_outer_in = pygame.transform.rotozoom(progress_bar_outer_in, 0, screen_height / 800)
     progress_bar_outer_rect_in = progress_bar_outer_in.get_rect(topleft=(0, 0))
     audio_items.update({'outerIn': {'surf': progress_bar_outer_in, 'rect': progress_bar_outer_rect_in}})
 
     progress_bar_inner = pygame.image.load('menu/progress_bar_inner.png').convert_alpha()
-    progress_bar_inner = pygame.transform.rotozoom(progress_bar_inner, 0, 0.5)
+    progress_bar_inner = pygame.transform.rotozoom(progress_bar_inner, 0, screen_height / 800)
     progress_bar_inner_rect = progress_bar_inner.get_rect(
         center=(progress_bar_outer_rect.width / 2 - progress_bar_outer_rect.width / (100 / (100 - volume_percentage)),
                 progress_bar_outer_rect.height / 2))
     audio_items.update({'inner': {'surf': progress_bar_inner, 'rect': progress_bar_inner_rect}})
 
     progress_bar_frame = pygame.image.load('menu/progress_bar_frame.png').convert_alpha()
-    progress_bar_frame = pygame.transform.rotozoom(progress_bar_frame, 0, 0.5)
-    progress_bar_frame_rect = progress_bar_frame.get_rect(center=(550, 150))
+    progress_bar_frame = pygame.transform.rotozoom(progress_bar_frame, 0, screen_height / 800)
+    progress_bar_frame_rect = progress_bar_frame.get_rect(
+        center=(screen_width / 1.4545, screen_height / 2.666666666666667))
     audio_items.update({'frame': {'surf': progress_bar_frame, 'rect': progress_bar_frame_rect}})
 
     progress_bar_button = pygame.image.load('menu/progress_bar_button.png').convert_alpha()
-    progress_bar_button = pygame.transform.rotozoom(progress_bar_button, 0, 0.5)
+    progress_bar_button = pygame.transform.rotozoom(progress_bar_button, 0, screen_height / 800)
     progress_bar_button_rect = progress_bar_button.get_rect(
         center=(progress_bar_outer_rect.midright[0] - progress_bar_outer_rect.width / (100 / (100 - volume_percentage)),
                 progress_bar_outer_rect.midright[1]))
@@ -251,7 +305,7 @@ def audio_options():
 
     volume_text = font.render(str(int(volume_percentage)) + ' %', False, 'Black')
     volume_text_rect = volume_text.get_rect(center=(progress_bar_frame_rect.left + progress_bar_frame_rect.width / 2,
-                                                    progress_bar_frame_rect.bottom + 40))
+                                                    progress_bar_frame_rect.bottom + screen_height / 10))
     audio_items.update({'volume': {'surf': volume_text, 'rect': volume_text_rect}})
 
 
@@ -297,9 +351,52 @@ def move_audio_bar(mouse_movement):
         mouse_button_interaction = False
 
 
+def handle_graphics():
+    handle_menu()
+    handle_controls()
+    handle_options()
+    audio_options()
+
+
+def change_resolution(width=800, height=400, full_screen=False):
+    global screen, screen_height, screen_width, shc, swc, ground_position, game_name, game_name_rect, font, \
+        player_stand, player_stand_rect, start_the_game_rect, start_the_game, highest_score_surf, highest_score_rect
+
+    if full_screen:
+        screen = pygame.display.set_mode(monitor_size, pygame.FULLSCREEN)
+    else:
+        screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
+
+    previous_screen_width = screen_width
+    previous_screen_height = screen_height
+    screen_height = height
+    screen_width = width
+    shc = height / 400
+    swc = width / 800
+    ground_position = round(screen_height / 1.3)
+
+    font = pygame.font.Font('font/pixeltype.ttf', int((screen_width + screen_height) / 24))
+    game_name = font.render('AVOID THE VERMIN!', False, 'Black')
+    game_name_rect = game_name.get_rect(center=(screen_width / 2, screen_height / 7))
+
+    player_stand = pygame.transform.rotozoom(player_stand_img, 0, screen_height / 200)
+    player_stand_rect = player_stand.get_rect(center=(screen_width / 2, screen_height / 2))
+    start_the_game = font.render('Press ENTER to start the game', False, 'Black')
+    start_the_game_rect = start_the_game.get_rect(
+        center=(screen_width / 2, player_stand_rect.bottom + screen_height / 8))
+    highest_score_surf = pygame.transform.rotozoom(highest_score_surf, 0, screen_width / 1100)
+    highest_score_rect = highest_score_surf.get_rect(topleft=(10, 10))
+
+    handle_graphics()
+    player.update(True, previous_screen_width)
+    obstacle_group.update(True, previous_screen_width)
+    shield.update(True, previous_screen_width, previous_screen_height)
+
+
 # START AND SCREEN
 pygame.init()
-screen = pygame.display.set_mode((800, 400))
+monitor_size = [pygame.display.Info().current_w, pygame.display.Info().current_h]
+screen = pygame.display.set_mode((800, 400), pygame.RESIZABLE)
 pygame.display.set_caption('Avoid the vermin!')
 fps = pygame.time.Clock()
 game_active = False
@@ -309,7 +406,12 @@ options = False
 score = 0
 end_score = 0
 mouse_down = False
-volume_percentage = 10
+volume_percentage = 0
+screen_height = screen.get_height()
+screen_width = screen.get_width()
+shc = screen.get_height() / 400
+swc = screen.get_width() / 800
+ground_position = round(screen_height / 1.3)
 
 shield_active = False
 start_shield_spawn_timer = 0
@@ -318,9 +420,9 @@ random_shield_spawn = randint(30, 60)
 # BACKGROUND MODELS
 sky = pygame.image.load('graphics/sky.png').convert()
 ground = pygame.image.load('graphics/ground.png').convert()
-font = pygame.font.Font('font/pixeltype.ttf', 50)
+font = pygame.font.Font('font/pixeltype.ttf', int((screen_width + screen_height) / 24))
 game_name = font.render('AVOID THE VERMIN!', False, 'Black')
-game_name_rect = game_name.get_rect(center=(400, 60))
+game_name_rect = game_name.get_rect(center=(screen_width / 2, screen_height / 7))
 
 # MUSIC
 background_music = pygame.mixer.Sound('audio/music.wav')
@@ -354,6 +456,7 @@ handle_controls()
 options_text = {}
 active_option = {}
 handle_options()
+fullscreen = False
 
 audio_items = {}
 audio_options()
@@ -363,14 +466,15 @@ progress_inner_center = audio_items['outer']['rect'].width / 2
 
 # SHIELD
 shield = pygame.sprite.GroupSingle()
+adjust_shield = False
 
 # MENU
-player_stand = pygame.image.load('graphics/Player/player_stand.png').convert_alpha()
-player_stand = pygame.transform.rotozoom(player_stand, 0, 2)
-player_stand_rect = player_stand.get_rect(center=(400, 200))
+player_stand_img = pygame.image.load('graphics/Player/player_stand.png').convert_alpha()
+player_stand = pygame.transform.rotozoom(player_stand_img, 0, screen_height / 200)
+player_stand_rect = player_stand.get_rect(center=(screen_width / 2, screen_height / 2))
 
 start_the_game = font.render('Press ENTER to start the game', False, 'Black')
-start_the_game_rect = start_the_game.get_rect(center=(400, player_stand_rect.bottom + 50))
+start_the_game_rect = start_the_game.get_rect(center=(screen_width / 2, player_stand_rect.bottom + screen_height / 8))
 
 # HIGHEST SCORE
 f = open('highest_score.txt', 'r')
@@ -379,7 +483,7 @@ score_index = highest_score.index(': ')
 highest_score = int(highest_score[score_index + 2:])
 f.close()
 highest_score_surf = font.render('Highest score: ' + str(highest_score), False, '#FF33AA')
-highest_score_surf = pygame.transform.rotozoom(highest_score_surf, 0, 0.7)
+highest_score_surf = pygame.transform.rotozoom(highest_score_surf, 0, screen_width / 1100)
 highest_score_rect = highest_score_surf.get_rect(topleft=(10, 10))
 
 # TIMER
@@ -409,17 +513,25 @@ while True:
         if event.type == pygame.MOUSEBUTTONUP:
             mouse_down = False
 
+        if event.type == pygame.VIDEORESIZE and not fullscreen:
+            change_resolution(event.w, event.h)
+
         if options:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 for options_button in options_text:
                     current_options_button = options_text[options_button]
                     options_rect = current_options_button['rect']
                     if options_rect.collidepoint(event.pos):
-                        active_option = options_rect
                         if options_button == 'Graphics':
                             audio = False
+                            fullscreen = not fullscreen
+                            if fullscreen:
+                                change_resolution(monitor_size[0], monitor_size[1], full_screen=True)
+                            else:
+                                change_resolution(800, 400)
                         elif options_button == 'Audio':
                             audio = True
+                        active_option = options_text[options_button]['rect']
                 if audio:
                     mouse_down = True
 
@@ -467,13 +579,14 @@ while True:
                 screen.blit(current_text['surf'], current_text['rect'])
         elif options:
             # DISPLAY OPTIONS
-            pygame.draw.rect(screen, (150, 150, 150), (100, 100, 600, 250))
-            pygame.draw.rect(screen, (32, 32, 32), (100, 100, 600, 250), 2)
-            pygame.draw.line(screen, (32, 32, 32), (screen.get_width() / 2, 100), (screen.get_width() / 2, 349), 3)
-            try:
+            pygame.draw.rect(screen, (150, 150, 150), (
+                int(screen_height / 4), int(screen_height / 4), int(screen_width / 1.3), int(screen_height / 1.6)))
+            pygame.draw.rect(screen, (32, 32, 32), (
+                int(screen_height / 4), int(screen_height / 4), int(screen_width / 1.3), int(screen_height / 1.6)), 2)
+            pygame.draw.line(screen, (32, 32, 32), (screen_width / 2, screen_height / 4),
+                             (screen_width / 2, screen_height / 1.142857142857143 - 1), 3)
+            if active_option:
                 pygame.draw.rect(screen, (200, 200, 200), active_option)
-            except TypeError:
-                pass
             for x in options_text:
                 current_options_text = options_text[x]
                 screen.blit(current_options_text['surf'], current_options_text['rect'])
@@ -504,8 +617,8 @@ while True:
 
     elif game_active:
         # BACKGROUND
-        screen.blit(sky, (0, 0))
-        screen.blit(ground, (0, 300))
+        screen.blit(pygame.transform.scale(sky, (screen_width, screen_height)), (0, 0))
+        screen.blit(pygame.transform.scale(ground, (screen_width, screen_height)), (0, ground_position))
         pygame.draw.rect(screen, '#c8e0ec',
                          (game_name_rect.left - 5,
                           game_name_rect.top - 5,
@@ -516,7 +629,7 @@ while True:
 
         # SCORE
         score_surf = font.render('Score: ' + str(score), False, (32, 32, 32))
-        score_rect = score_surf.get_rect(midleft=(330, game_name_rect.bottom + 20))
+        score_rect = score_surf.get_rect(center=(screen_width / 2, game_name_rect.bottom + screen_height / 20))
         screen.blit(score_surf, score_rect)
 
         highest_score_surf = font.render('Highest score: ' + str(highest_score), False, '#FF33AA')
@@ -562,7 +675,8 @@ while True:
 
         # SCORE
         score_message = font.render('Score: ' + str(end_score), False, 'Black')
-        score_message_rect = score_message.get_rect(midleft=(330, game_name_rect.bottom + 20))
+        score_message_rect = score_message.get_rect(
+            center=(screen_width / 2, game_name_rect.bottom + screen_height / 20))
 
         if end_score != 0:
             screen.blit(score_message, score_message_rect)
