@@ -1,4 +1,4 @@
-from random import randint, choice
+from random import randint, choices
 from sys import exit
 import pygame
 
@@ -48,7 +48,7 @@ class Player(pygame.sprite.Sprite):
                     self.player_index = 0
                 self.image = self.player_walk[int(self.player_index)]
                 self.image = pygame.transform.flip(self.image, True, False)
-        if self.rect.bottom == ground_position:
+        elif self.rect.bottom == ground_position:
             if self.face_right:
                 self.image = self.player_walk[0]
             else:
@@ -88,7 +88,7 @@ class Player(pygame.sprite.Sprite):
             self.movement()
             self.apply_physics()
             self.reset_position()
-            adjust_shield = not self.face_right
+            shield_adjustment(self.face_right, self.rect.bottom < ground_position)
 
 
 class Obstacle(pygame.sprite.Sprite):
@@ -96,18 +96,18 @@ class Obstacle(pygame.sprite.Sprite):
         super().__init__()
         self.obstacle_type = obstacle_type
 
+        y_pos = ground_position
         if obstacle_type == 'fly':
             self.fly_1 = pygame.image.load('graphics/fly/fly1.png').convert_alpha()
             self.fly_2 = pygame.image.load('graphics/fly/fly2.png').convert_alpha()
             self.frames = [pygame.transform.rotozoom(self.fly_1, 0, screen_height / 400),
                            pygame.transform.rotozoom(self.fly_2, 0, screen_height / 400)]
             y_pos = ground_position / 1.43
-        else:
+        elif obstacle_type == 'snail':
             self.snail_1 = pygame.image.load('graphics/snail/snail1.png').convert_alpha()
             self.snail_2 = pygame.image.load('graphics/snail/snail2.png').convert_alpha()
             self.frames = [pygame.transform.rotozoom(self.snail_1, 0, screen_height / 400),
                            pygame.transform.rotozoom(self.snail_2, 0, screen_height / 400)]
-            y_pos = ground_position
 
         self.animation_index = 0
 
@@ -163,7 +163,10 @@ class Shield(pygame.sprite.Sprite):
                 self.image = self.shield_small
             self.rect = self.image.get_rect(midbottom=(player.sprite.rect.midtop[0], player.sprite.rect.midtop[1]))
             if adjust_shield:
-                self.rect.x -= player.sprite.rect.width / 20
+                if adjust_shield == 'left':
+                    self.rect.x -= player.sprite.rect.width / 20
+                elif adjust_shield == 'right':
+                    self.rect.x += player.sprite.rect.width / 20
         else:
             self.rect.x -= 4 * swc
 
@@ -212,15 +215,23 @@ def collision():
 
 
 def shield_pickup():
-    try:
+    if shield:
         if player.sprite.rect.colliderect(shield.sprite.rect):
             return True
         elif shield_active:
             return True
         else:
             return False
-    except AttributeError:
-        return False
+
+
+def shield_adjustment(player_is_right, player_is_in_air):
+    global adjust_shield
+    if not player_is_right and not player_is_in_air:
+        adjust_shield = 'left'
+    elif not player_is_right and player_is_in_air:
+        adjust_shield = 'right'
+    else:
+        adjust_shield = None
 
 
 def handle_menu():
@@ -441,6 +452,7 @@ player.add(Player())
 
 # OBSTACLE
 obstacle_group = pygame.sprite.Group()
+obstacles = {'snail': 66, 'fly': 33}
 
 # MENU
 menu_text_image = {}
@@ -556,7 +568,8 @@ while True:
         elif game_active:
             # OBSTACLE SPAWN
             if event.type == obstacle_timer:
-                obstacle_group.add(Obstacle(choice(['fly', 'snail', 'snail'])))
+                obstacle_group.add(Obstacle(choices([i for i in obstacles],
+                                                    weights=[obstacles.get(i) for i in obstacles])[0]))
             if event.type == score_timer:
                 score += 1
             end_score = score
